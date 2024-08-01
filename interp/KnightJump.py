@@ -1,98 +1,88 @@
 import config
-from mirrorbase import change_dir, mb
+import mirrorbase
+
+if config.file != "":
+    with open(config.file,"r") as f:
+        code = f.read()
+else:
+    code = input()
+
+to_num = {(1,-2) : 0, (-1,-2) : 1, (2,-1) : 2, (2,1) : 3, (1,2) : 4, (-1,2) : 5, (-2,-1) : 6, (-2,1) : 7}
+to_dir = [(1,-2), (-1,-2), (2,-1), (2,1), (1,2), (-1,2), (-2,-1), (-2,1)]
+ncode = [[]]
+for i in code:
+    if i == "\n":
+        ncode.append([])
+        continue
+    ncode[-1].append(i)
+code = ncode
+
+width = len(max(code,key=lambda a: len(a)))
+for i in code:
+    while len(i) < width:
+        i.append(" ")
+height = len(code)
+
+def get_num(code,pos, back=None):
+    if back == None: back = []
+    back.append(pos)
+
+    if (npos := ( (pos[0]-1)%width, (pos[1]-1)%height )) not in back\
+        and code[npos[1]][npos[0]] in [str(x) for x in range(10)]:
+        return code[pos[1]][pos[0]] + get_num(code, npos, back)
+    
+    if (npos := ( (pos[0]+1)%width, (pos[1]-1)%height )) not in back\
+        and code[npos[1]][npos[0]] in [str(x) for x in range(10)]:
+        return code[pos[1]][pos[0]] + get_num(code, npos, back)
+    
+    if (npos := ( (pos[0]+1)%width, (pos[1]+1)%height )) not in back\
+        and code[npos[1]][npos[0]] in [str(x) for x in range(10)]:
+        return code[pos[1]][pos[0]] + get_num(code, npos, back)
+    
+    if (npos := ( (pos[0]-1)%width, (pos[1]+1)%height )) not in back\
+        and code[npos[1]][npos[0]] in [str(x) for x in range(10)]:
+        return code[pos[1]][pos[0]] + get_num(code, npos, back)
+    
+    return code[pos[1]][pos[0]]
 
 def execute(code):
-    def check(x,y,d):
-        return  ([x,y] not in d) and (chrat(x,y) in [str(z) for z in range(0,10)])
-
-    def getnum(x,y,d):
-        for b in [[-1,-1],[1,-1],[1,1],[-1,1]]:
-            [cx,cy] = [wx(x+b[0]),wy(y+b[1])]
-            if(check(cx,cy,d)):
-                d.append([x,y])
-                return chrat(x,y)+getnum(cx,cy,d)
-        return chrat(x,y)
-
-    def chrat(x,y):
-        return chr(ord(code[x+width*y+y])+enc)
-
-    def wx(num):
-        if (num >= 0):
-            return (num % width)
-        else: 
-            return width - (num % width)
-        
-    def wy(num):
-        if (num >= 0):
-            return (num % height)
-        else: 
-            return height - (num % height)
-    
-    if code[0]=="\n": code = code[1:]
-
-    width = 0
-    while code[width]!="\n": width+=1
-    height = code.count('\n')
-    x = 0
-    y = 0
-    direction = 4
-
     stack = []
-    dtable = [[-2,1],[-2,-1],[-1,-2],[1,-2],[2,1],[2,-1],[-1,2],[1,-2]]
+    pos = (0,0)
     enc = 0
+    direction = (1,2)
+    cc = code[pos[0]][pos[1]]
+    while cc != "@":
+        cc = code[pos[1]][pos[0]]
 
-    while True:
-        c = chrat(x,y)
-        if c=="@": 
-            break
-        elif c=="$":
-            stack.append(stack[-1])
-        elif c=="\\":
-            [ stack[-2], stack[-1] ] = [ stack[-1], stack[-2] ]
-        elif c=="%":
-            stack.pop()
-        elif c in mb:
-            direction = change_dir(direction,c)
-        elif c=="+":
-            stack.append(stack.pop()+stack.pop())
-        elif c=="-":
-            [ stack[-2], stack[-1] ] = [ stack[-1], stack[-2] ]
-            stack.append(stack.pop()-stack.pop())
-        elif c==">":
-            [ stack[-2], stack[-1] ] = [ stack[-1], stack[-2] ]
-            stack.append(int(stack.pop()>stack.pop()))
-        elif c=="<":
-            [ stack[-2], stack[-1] ] = [ stack[-1], stack[-2] ]
-            stack.append(int(stack.pop()<stack.pop()))
-        elif c=="=":
-            stack.append(int(stack.pop()==stack.pop()))
-        elif c=="/":
-            [ stack[-2], stack[-1] ] = [ stack[-1], stack[-2] ]
-            stack.append(stack.pop()/stack.pop())
-        elif c=="^":
-            [ stack[-2], stack[-1] ] = [ stack[-1], stack[-2] ]
-            stack.append(stack.pop()**stack.pop())
-        elif c=="*":
-            stack.append(stack.pop()*stack.pop())
-        elif c==";":
-            print(stack[-1],end="")
-        elif c==":":
-            stack.append(int(input()))
-        elif c=="?":
-            stack.append(ord(input()))
-        elif c=="!":
-            print(chr(stack[-1]),end="")
-        elif c=="#":
-            enc = stack.pop()
-        elif c=="&":
-            stack = stack[::-1]
-        elif chr(ord(c)-enc) == "~":
-            enc = 0
-        elif c in [str(x) for x in range(0,10)]:
-            stack.append( int(getnum(x,y,[])) )
-    
-        x = wx(x+dtable[direction][1])
-        y = wy(y+dtable[direction][0])
-if __name__ == '__main__':
-    with open(config.file,"r") as f:
-        execute(f.read())
+        if cc in mirrorbase.mb: direction = to_dir[mirrorbase.change_dir(to_num[direction],cc)]
+        elif cc == "$": stack.append(stack[-1])
+        elif cc == "\\": stack[-1],stack[-2] = stack[-2],stack[-1]
+        elif cc == "%": stack.pop()
+        elif cc in [str(x) for x in range(10)]: stack.append(int(get_num(code,pos)))
+        elif cc == "+": stack.append(stack.pop()+stack.pop())
+        elif cc == "-": stack.append(stack.pop()-stack.pop())
+        elif cc == "*": stack.append(stack.pop()*stack.pop())
+        elif cc == "/": stack.append(stack.pop()/stack.pop())
+        elif cc == "^": stack.append(stack.pop()**stack.pop())
+        elif cc == ">": stack.append(int(stack.pop()>stack.pop()))
+        elif cc == "<": stack.append(int(stack.pop()<stack.pop()))
+        elif cc == "=": stack.append(int(stack.pop()==stack.pop()))
+        elif cc == ":": stack.append(int(input()))
+        elif cc == ";": print(stack[-1])
+        elif cc == "?": stack.append(ord(input()))
+        elif cc == "!": print(chr(stack[-1]), end="")
+        elif cc == "#":
+            for i,v in enumerate(code):
+                for j,w in enumerate(v):
+                    code[i][j] = "~" if w == "~" else chr(ord(w)+stack[-1])
+                    enc = stack.pop()
+        elif cc == "~":
+            for i,v in enumerate(code):
+                for j,w in enumerate(v):
+                    code[i][j] = "~" if w == "~" else chr(ord(w)-enc)
+                    enc = 0
+        elif cc == "&":
+            stack = stack[-1]
+        pos = ((pos[0] + direction[0]) % width, (pos[1] + direction[1]) % height)
+
+execute(code)
